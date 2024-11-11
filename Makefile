@@ -2,6 +2,7 @@ PROG = ggmcalc
 FC = gfortran
 FCFLAGS = -Wall -O3 -Isrc -Jsrc -ffree-form -ffree-line-length-none -ffast-math -Ofast -fopenmp
 LD = $(FC)
+INSTALL_DIR = /opt/bin/
 SRCS = src/nrtype.f \
        src/coordinates_mod.f \
        src/legendre_mod.f \
@@ -15,7 +16,9 @@ SRCS = src/nrtype.f \
        src/gravity_anomaly_mod.f \
        src/progressbar_mod.f \
        src/date_sub.f \
-       src/duration.f
+       src/duration.f \
+       src/color_mod.f \
+       src/help_mod.f
 SRCP = src/$(PROG).f
 OBJS = $(SRCS:%.f=%.o)
 MODS = $(SRCS:%.f=%.mod)
@@ -32,3 +35,7 @@ $(PROG): $(OBJS) $(OBJP)
 
 clean:
 	$(RM) $(PROG) $(OBJS) $(OBJP) $(MODS)
+	
+install:
+	mkdir -p $(INSTALL_DIR)
+	cp $(PROG) $(INSTALL_DIR)
