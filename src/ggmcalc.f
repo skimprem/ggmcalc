@@ -55,6 +55,10 @@
  character(len=:), allocatable :: coef_file, ellipsoid_config, input_file
  character(len=500) :: arg
 
+coef_file = ''
+ellipsoid_config = ''
+input_file = ''
+
 do while(i < command_argument_count())
     i = i + 1
     call get_command_argument(i, arg)
@@ -75,7 +79,12 @@ do while(i < command_argument_count())
 	  write(stdout, *) print_help()
 	  stop
     end select
-  end do
+end do
+
+if (len(trim(coef_file)) == 0 .or. len(trim(ellipsoid_config)) == 0 .or. len(trim(input_file)) == 0) then
+  write(stdout, *) 'Usage: ggmcalc --coeffs [COEFFS] --ellip_conf [ELLIP_CONF] --input_file [INPUT_FILE]'
+  stop
+end if
 
 ! nproc = omp_get_num_procs()
 ! write(*,*) ' Number of available threads ',nproc
@@ -377,7 +386,7 @@ do while(i < command_argument_count())
  read(5, *) productionname
 
  close(12)
- open(12, file='input.dat')
+ open(12, file=input_file)
 
  ii = 0
  300 continue
