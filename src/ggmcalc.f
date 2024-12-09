@@ -625,7 +625,7 @@ end if
 
  write(outputname, *) 'output_', trim(modelname), '_', trim(productionname), '.dat'
  write(outputlogname, *) 'output_', trim(modelname), '_', trim(productionname), '.log'
- open(12, file=outputname)
+ open(12, file=trim(adjustl(outputname)))
 
  if (T_B_IT_true) then
 	write(12,*) 'Latitude(degree) Longitude(degree) Height(m) Water_Depth(m) Ice_Thickness(m) Undulation(m) Undulation_with_Simple_Assumed_Density(m) Undulation_with_Assumed_Density(m) Heigh_Anomaly(m) Gravity_Disturbance(mGal) Classical_Gravity_Anomaly(mGal) Classical_Gravity_Anomaly_2(mGal) Molodensky_Gravity_Anomaly(mGal)'
@@ -713,7 +713,7 @@ end if
  write(stdout, 5151) days2, hours2, minutes2, seconds2
  3131 format(' Saving time:    ', I3, ' days ', I3, ' hours ', I3, ' minutes ', F7.3, ' seconds')
 
- open(12, file=outputlogname)
+ open(12, file=trim(adjustl(outputlogname)))
 
  write(12, *) 'Read Ellipsoid Parameters --> Done! '
  write(12, *) 'Read Geopotential Model Parameters --> Done! '
