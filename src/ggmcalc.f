@@ -53,16 +53,24 @@
  integer :: days1, hours1, minutes1, days2, hours2, minutes2, i, stdout = 6
  real(longdp) :: seconds1, seconds2
  character(len=:), allocatable :: coef_file, ellipsoid_config, input_file
- character(len=500) :: arg
+ character(len=500) :: arg, number_to_string
 
 coef_file = ''
 ellipsoid_config = ''
 input_file = ''
+ellipsoidal_true = .true.
+T_B_IT_true = .false.
+Iteration = 0
+N_Precision = 1e-3_longdp
+Zeta_Precision = 1e-3_longdp
+productionname = 'default'
 
+
+i = 0
 do while(i < command_argument_count())
     i = i + 1
     call get_command_argument(i, arg)
-    select case(arg)
+    select case(trim(adjustl(arg)))
     case('--coeffs')
       i = i + 1
       call get_command_argument(i, arg)
@@ -75,16 +83,54 @@ do while(i < command_argument_count())
       i = i + 1
       call get_command_argument(i, arg)
       input_file = trim(adjustl(arg))
+	case('--ortho_height')
+	  ellipsoidal_true = .false.
+	case('--topo')
+      T_B_IT_true = .true.
+	case('--iters')
+	  i = i + 1
+	  call get_command_argument(i, arg)
+	  read(arg, *) Iteration 
+	case('--n_prec')
+	  i = i + 1
+	  call get_command_argument(i, arg)
+	  read(arg, *) N_Precision
+	case('--z_prec')
+	  i = i + 1
+	  call get_command_argument(i, arg)
+	  read(arg, *) Zeta_Precision
+	case('--output')
+	  i = i + 1
+	  call get_command_argument(i, arg)
+	  productionname = trim(adjustl(arg))
 	case('--help')
-	  write(stdout, *) print_help()
+	  write(stdout, '(a)') 'Help launch!'
+	  write(stdout, '(a)') print_help()
 	  stop
     end select
 end do
 
-if (len(trim(coef_file)) == 0 .or. len(trim(ellipsoid_config)) == 0 .or. len(trim(input_file)) == 0) then
-  write(stdout, *) 'Usage: ggmcalc --coeffs [COEFFS] --ellip_conf [ELLIP_CONF] --input_file [INPUT_FILE]'
+ if (len(trim(coef_file)) == 0) then
+  write(stdout, *) 'Coeff file not set!'
+  write(stdout, *) print_help()
   stop
-end if
+ end if
+ 
+ if (len(trim(ellipsoid_config)) == 0) then
+  write(stdout, *) 'Ellipsoidal configuration file not set!'
+  write(stdout, *) print_help()
+  stop
+ end if
+ 
+ if (len(trim(input_file)) == 0) then
+  write(stdout, *) 'Input file not set!'
+  write(stdout, *) print_help()
+  stop
+ end if
+
+ write(stdout, '(2a)') 'coeff file: ', color(coef_file, c_green)
+ write(stdout, '(2a)') 'ellipsoid config: ', color(ellipsoid_config, c_green)
+ write(stdout, '(2a)') 'input file: ', color(input_file, c_green)
 
 ! nproc = omp_get_num_procs()
 ! write(*,*) ' Number of available threads ',nproc
@@ -96,10 +142,8 @@ end if
  !----------------------------------------------------------------------------------------------------
  !---------------------------- Reading of Reference Ellipsoid Parameters -----------------------------
  !----------------------------------------------------------------------------------------------------
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
 
- write(stdout, *) 'Read Ellipsoid Parameters . . . '
+ write(stdout, '(a)', advance='no') 'Read Ellipsoid Parameters ... '
 
  open(12, file=ellipsoid_config)
  !----------------------------------------------------------------------------------------------------
@@ -119,21 +163,33 @@ end if
  !------------------------- End of Reading of Reference Ellipsoid Parameters -------------------------
  !----------------------------------------------------------------------------------------------------
 
-
+ write(stdout, '(a)') 'done!'
+ write(stdout, *) 'Ellipsoid Parameters:'
+ write(stdout, *) '----------------------------------------------------------------------'
+ write(stdout, *) 'Reference Ellipsoid Name: ', color(trim(adjustl(ellipsoidname)), c_green)
+ write(number_to_string, *) GM_ellipsoid
+ write(stdout, *) 'Ellipsoid Gravity Constant: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) a
+ write(stdout, *) 'Semimajor Axis of the Ellipsoid: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) b
+ write(stdout, *) 'Semiminor Axis of the Ellipsoid: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) f_reciprocal
+ write(stdout, *) 'Reciprocal Flattening: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) omega
+ write(stdout, *) 'Angular Velocity of the Earth: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) U_0
+ write(stdout, *) 'Normal Potential at the Ellipsoid: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) m_ellipsoid
+ write(stdout, *) 'm = ω**2 a**2 b/(GM): ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) gamma_0
+ write(stdout, *) 'Normal Gravity at the Equator: ', color(trim(adjustl(number_to_string)), c_green)
+ write(stdout, *) '----------------------------------------------------------------------'
+ 
  !----------------------------------------------------------------------------------------------------
  !----------------------------- Reading of Geopotential Model Parameters -----------------------------
  !----------------------------------------------------------------------------------------------------
 
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'coeff file: ', color(coef_file, c_green)
- 
- write(stdout, *) 'ellipsoid config: ', color(ellipsoid_config, c_green)
- write(stdout, *) 'input file: ', color(input_file, c_green)
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters . . . '
+ write(stdout, '(a)', advance='no') 'Read Geopotential Model Parameters ... '
 
  product_type = 'Unknown'
  modelname = 'Unknown'
@@ -141,6 +197,7 @@ end if
  norm = 'Unknown'
  tide_system = 'Unknown'
  open(12, file=coef_file)
+
  do
 	read(12, '(A)') buffer
 	pos = scan(buffer, ' ')
@@ -218,18 +275,59 @@ end if
  !-------------------------- End of Reading of Geopotential Model Parameters -------------------------
  !----------------------------------------------------------------------------------------------------
 
+ write(stdout, '(a)') 'done! '
 
+ write(stdout, *) 'Geopotential Model Parameters:'
+ write(stdout, *) '----------------------------------------------------------------------'
+ write(stdout, *) 'Product Type: ', color(trim(adjustl(product_type)), c_green)
+ write(stdout, *) 'Model Name: ', color(trim(adjustl(modelname)), c_green)
+ write(number_to_string, *) GM
+ write(stdout, *) 'Earth Gravity Constant: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) R
+ write(stdout, *) 'Radius of the Earth: ', color(trim(adjustl(number_to_string)), c_green)
+ write(number_to_string, *) nmax
+ write(stdout, *) 'Maximum Degree of Model: ', color(trim(adjustl(number_to_string)), c_green)
+ write(stdout, *) 'Errors Type of Model: ', color(trim(adjustl(errors)), c_green)
+ write(stdout, *) 'Normalization Type: ', color(trim(adjustl(norm)), c_green)
+ write(stdout, *) 'Tide System: ', color(trim(adjustl(tide_system)), c_green)
+ write(stdout, *) '----------------------------------------------------------------------'
+ 
+ if (ellipsoidal_true) then 
+	write(stdout, '(a)') 'Ellipsoidal height expected!'
+ else
+	write(stdout, '(a)') 'Orthometric height expected!'
+ end if
+
+ if (T_B_IT_true) then
+	write(stdout, '(a)') 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
+
+	allocate(depth_p(nmax_p))
+	allocate(ice_p(nmax_p))
+
+	do ii = 1, nmax_p
+		depth_p(ii) = 0.0_longdp
+		ice_p(ii) = 0.0_longdp
+	end do
+
+ end if
+
+ if (Iteration == 0) then
+   write(number_to_string, *) Iteration
+   write(stdout, *) 'Number of Iteration, s: ', color(trim(adjustl(number_to_string)), c_green)
+   write(number_to_string, *) N_Precision
+   write(stdout, *) 'Undulation Precision, m: ', color(trim(adjustl(number_to_string)), c_green)
+   write(number_to_string, *) zeta_Precision
+   write(stdout, *)'Height Anomaly Precision, m: ', color(trim(adjustl(number_to_string)), c_green)
+ else
+   N_Precision = 0.0_longdp
+   Zeta_Precision = 0.0_longdp
+ end if
 
  !----------------------------------------------------------------------------------------------------
  !---------------------------------- Reading of Points Coordinates -----------------------------------
  !----------------------------------------------------------------------------------------------------
 
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points . . . '
+ write(stdout, '(a)', advance='no') 'Read Data Points ... '
 
  open(12, file=input_file)
 
@@ -269,122 +367,6 @@ end if
  end do
  !----------------------------------------------------------------------------------------------------
 
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points . . . '
-
- write(stdout, *) 'Is Height of Points Ellipsoidal(T) or Orthometric(F):'
- read(5, *) ellipsoidal_true
-
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points . . . '
- if (ellipsoidal_true) then 
-	write(stdout, *) 'Ellipsoidal height expected!'
- else
-	write(stdout, *) 'Orthometric height expected!'
- end if
-
- write(stdout, *) 'Are Topography, Bathymetry, and Ice Thickness Available Separately (T/F):'
- read(5, *) T_B_IT_true
-
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points . . . '
- if (ellipsoidal_true) then 
-	write(stdout, *) 'Ellipsoidal height expected!'
- else
-	write(stdout, *) 'Orthometric height expected!'
- end if
- if (T_B_IT_true) then
-	write(stdout, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
-
-	allocate(depth_p(nmax_p))
-	allocate(ice_p(nmax_p))
-
-	do ii = 1, nmax_p
-		depth_p(ii) = 0.0_longdp
-		ice_p(ii) = 0.0_longdp
-	end do
-
- end if
-
- write(stdout, *) 'Please Enter Required Iterations for Calculation of the Undulations and the Height Anomalies (0 for Entering of Precisions):'
- read(5, *) Iteration
- if (Iteration == 0) then
-	write(*, *) char(27), '[2J'
-	write(*, *) char(27), '[1;1H'
-
-	write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
-	write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
-	write(stdout, *) 'Read Data Points . . . '
-	if (ellipsoidal_true) then 
-		write(stdout, *) 'Ellipsoidal height expected!'
-	else
-		write(stdout, *) 'Orthometric height expected!'
-	end if
-	if (T_B_IT_true) then
-		write(stdout, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
-	end if
-	write(stdout, *) 'Number of Iteration(s) = ', Iteration
-    write(stdout, *) 'Please Enter Required Precision for Calculation of the Undulations (m):'
-    read(5, *) N_Precision
-
-	write(*, *) char(27), '[2J'
-	write(*, *) char(27), '[1;1H'
-
-	write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
-	write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
-	write(stdout, *) 'Read Data Points . . . '
-	if (ellipsoidal_true) then 
-		write(stdout, *) 'Ellipsoidal height expected!'
-	else
-		write(stdout, *) 'Orthometric height expected!'
-	end if
-	if (T_B_IT_true) then
-		write(stdout, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
-	end if
-	write(stdout, *) 'Number of Iteration(s) = ', Iteration
-	write(stdout, fmt="(' Undulation Precision (m) =     ', f7.4)") N_Precision
-    write(stdout, *) 'Please Enter Required Precision for Calculation of the Height Anomalies (m):'
-    read(5, *) Zeta_Precision
- else
-    N_Precision = 0.0_longdp
-    Zeta_Precision = 0.0_longdp
- end if
-
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points . . . '
- if (ellipsoidal_true) then 
-	write(stdout, *) 'Ellipsoidal height expected!'
- else
-	write(stdout, *) 'Orthometric height expected!'
- end if
- if (T_B_IT_true) then
-	write(stdout, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
- end if
- write(stdout, *) 'Number of Iteration(s) = ', Iteration
- if (Iteration == 0) then
-	write(stdout, fmt="(' Undulation Precision (m) =     ', f7.4)") N_Precision
-	write(stdout, fmt="(' Height Anomaly Precision (m) = ', f7.4)") zeta_Precision
- end if
-
- write(stdout, *) 'Please Enter Production Name:'
- read(5, *) productionname
-
  close(12)
  open(12, file=input_file)
 
@@ -422,13 +404,17 @@ end if
  !------------------------------- End of Reading of Points Coordinates -------------------------------
  !----------------------------------------------------------------------------------------------------
 
+ write(stdout, '(a)') 'done! '
+ 
+ write(number_to_string, *) nmax_p
+ write(stdout, *) 'Number of Data Points: ', color(trim(adjustl(number_to_string)), c_green)
+
  allocate(p_bar_nm(nmax+1, nmax+1))
  do ii = 0, nmax
 	do jj = 0, nmax
 		p_bar_nm(ii+1, jj+1) = 0.0_longdp
 	end do
  end do
-
 
  allocate(dp_bar_nm(nmax+1, nmax+1))
  do ii = 0, nmax
@@ -437,64 +423,9 @@ end if
 	end do
  end do
 
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points --> Done! '
- if (ellipsoidal_true) then 
-	write(stdout, *) 'Ellipsoidal height expected!'
- else
-	write(stdout, *) 'Orthometric height expected!'
- end if
- if (T_B_IT_true) then
-	write(stdout, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
- end if
- write(stdout, *) 'Number of Iteration(s) = ', Iteration
- if (Iteration == 0) then
-	write(stdout, fmt="(' Undulation Precision (m) =     ', f7.4)") N_Precision
-	write(stdout, fmt="(' Height Anomaly Precision (m) = ', f7.4)") zeta_Precision
- end if
-
+ write(stdout, *) 'Production Name: ', color(trim(adjustl(productionname)), c_green)
+ write(stdout, '(a)') 'Computing ... '
  write(stdout, *) ''
-
- write(stdout, *) 'Number of Data Points = ', nmax_p
-
- write(stdout, *) ''
-
- write(stdout, *) 'Ellipsoid Parameters:'
- write(stdout, *) '----------------------------------------------------------------------'
- write(stdout, *) 'Reference Ellipsoid Name:           ', trim(adjustl(ellipsoidname))
- write(stdout, *) 'Ellipsoid Gravity Constant =        ', GM_ellipsoid
- write(stdout, *) 'Semimajor Axis of the Ellipsoid =   ', a
- write(stdout, *) 'Semiminor Axis of the Ellipsoid =   ', b
- write(stdout, *) 'Reciprocal Flattening =             ', f_reciprocal
- write(stdout, *) 'Angular Velocity of the Earth =     ', omega
- write(stdout, *) 'Normal Potential at the Ellipsoid = ', U_0
- write(stdout, *) 'm = ω**2 a**2 b/(GM) =              ', m_ellipsoid
- write(stdout, *) 'Normal Gravity at the Equator =     ', gamma_0
- write(stdout, *) '----------------------------------------------------------------------'
-
- write(stdout, *) ''
-
- write(stdout, *) 'Geopotential Model Parameters:'
- write(stdout, *) '----------------------------------------------------------------------'
- write(stdout, *) 'Product Type:             ', trim(adjustl(product_type))
- write(stdout, *) 'Model Name:               ', trim(adjustl(modelname))
- write(stdout, *) 'Earth Gravity Constant =  ', GM
- write(stdout, *) 'Radius of the Earth =     ', R
- write(stdout, *) 'Maximum Degree of Model = ', nmax
- write(stdout, *) 'Errors Type of Model:     ', trim(adjustl(errors))
- write(stdout, *) 'Normalization Type:       ', trim(adjustl(norm))
- write(stdout, *) 'Tide System:              ', trim(adjustl(tide_system))
- write(stdout, *) '----------------------------------------------------------------------'
-
- write(stdout, *) ''
- write(stdout, *) 'Production Name: ', productionname
- write(stdout, *) ''
-
- write(stdout, *) 'Computing . . .'
 
  Number_p = 0
  call progress(Number_p, nmax_p) ! generate the progress bar.
@@ -557,84 +488,24 @@ end if
 !!$OMP END PARALLEL
 
  call exec_time(days1, hours1, minutes1, seconds1)
- write(stdout, *) 'calculation time: days = ', days1, 'hours = ', hours1, 'minutes = ', minutes1, 'seconds = ', seconds1
  call exec_time(days2, hours2, minutes2, seconds2)
 
  call progress_close
 
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
+ write(stdout, '(a)', advance='no') 'Saving Results ... '
 
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points --> Done! '
- if (ellipsoidal_true) then 
-	write(stdout, *) 'Ellipsoidal height expected!'
- else
-	write(stdout, *) 'Orthometric height expected!'
- end if
- if (T_B_IT_true) then
-	write(stdout, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
- end if
- write(stdout, *) 'Number of Iteration(s) = ', Iteration
- if (Iteration == 0) then
-	write(stdout, fmt="(' Undulation Precision (m) =     ', f7.4)") N_Precision
-	write(stdout, fmt="(' Height Anomaly Precision (m) = ', f7.4)") zeta_Precision
- end if
-
- write(stdout, *) ''
-
- write(stdout, *) 'Number of Data Points = ', nmax_p
-
- write(stdout, *) ''
-
- write(stdout, *) 'Ellipsoid Parameters:'
- write(stdout, *) '----------------------------------------------------------------------'
- write(stdout, *) 'Reference Ellipsoid Name:           ', trim(adjustl(ellipsoidname))
- write(stdout, *) 'Ellipsoid Gravity Constant =        ', GM_ellipsoid
- write(stdout, *) 'Semimajor Axis of the Ellipsoid =   ', a
- write(stdout, *) 'Semiminor Axis of the Ellipsoid =   ', b
- write(stdout, *) 'Reciprocal Flattening =             ', f_reciprocal
- write(stdout, *) 'Angular Velocity of the Earth =     ', omega
- write(stdout, *) 'Normal Potential at the Ellipsoid = ', U_0
- write(stdout, *) 'm = ω**2 a**2 b/(GM) =              ', m_ellipsoid
- write(stdout, *) 'Normal Gravity at the Equator =     ', gamma_0
- write(stdout, *) '----------------------------------------------------------------------'
-
- write(stdout, *) ''
-
- write(stdout, *) 'Geopotential Model Parameters:'
- write(stdout, *) '----------------------------------------------------------------------'
- write(stdout, *) 'Product Type:             ', trim(adjustl(product_type))
- write(stdout, *) 'Model Name:               ', trim(adjustl(modelname))
- write(stdout, *) 'Earth Gravity Constant =  ', GM
- write(stdout, *) 'Radius of the Earth =     ', R
- write(stdout, *) 'Maximum Degree of Model = ', nmax
- write(stdout, *) 'Errors Type of Model:     ', trim(adjustl(errors))
- write(stdout, *) 'Normalization Type:       ', trim(adjustl(norm))
- write(stdout, *) 'Tide System:              ', trim(adjustl(tide_system))
- write(stdout, *) '----------------------------------------------------------------------'
-
- write(stdout, *) ''
- write(stdout, *) 'Production Name: ', productionname
- write(stdout, *) ''
-
- write(stdout, *) 'Computing --> Done!'
- write(stdout, *) 'Saving Results . . .'
- write(stdout, *) 'calculation time: days = ', days1, 'hours = ', hours1, 'minutes = ', minutes1, 'seconds = ', seconds1
-
- write(outputname, *) 'output_', trim(modelname), '_', trim(productionname), '.dat'
- write(outputlogname, *) 'output_', trim(modelname), '_', trim(productionname), '.log'
+write(outputname, *) 'output_', trim(modelname), '_', trim(productionname), '.dat'
+write(outputlogname, *) 'output_', trim(modelname), '_', trim(productionname), '.log'
  open(12, file=trim(adjustl(outputname)))
 
  if (T_B_IT_true) then
 	write(12,*) 'Latitude(degree) Longitude(degree) Height(m) Water_Depth(m) Ice_Thickness(m) Undulation(m) Undulation_with_Simple_Assumed_Density(m) Undulation_with_Assumed_Density(m) Heigh_Anomaly(m) Gravity_Disturbance(mGal) Classical_Gravity_Anomaly(mGal) Classical_Gravity_Anomaly_2(mGal) Molodensky_Gravity_Anomaly(mGal)'
  else
-	write(12,*) 'Latitude(degree) Longitude(degree) Height(m) Undulation(m) Undulation_with_Simple_Assumed_Density(m) Heigh_Anomaly(m) Gravity_Disturbance(mGal) Classical_Gravity_Anomaly(mGal) Classical_Gravity_Anomaly_2(mGal) Molodensky_Gravity_Anomaly(mGal)'
+	write(12,*) 'Latitude(degree) Longitude(degree) Height(m) Undulation(m) Undulation_with_Simple_Assumed_Density(m) Height_Anomaly(m) Gravity_Disturbance(mGal) Classical_Gravity_Anomaly(mGal) Classical_Gravity_Anomaly_2(mGal) Molodensky_Gravity_Anomaly(mGal)'
  endif
 
  do ii = 1, nmax_p
-	call progress(ii, nmax_p) ! generate the progress bar.
+!	call progress(ii, nmax_p) ! generate the progress bar.
 
 	if (T_B_IT_true) then
 		write(12, *) latitude_p_geodetic(ii), longitude_p(ii), h_p(ii), depth_p(ii), ice_p(ii), Undulation_p(ii), Undulation_Simple_Assumed_Density_p(ii), Undulation_Assumed_Density_p(ii), Height_Anomaly_p(ii), Gravity_Disturbance_p(ii), Classical_Gravity_Anomaly_p(ii), Classical_Gravity_Anomaly_2_p(ii), Molodensky_Gravity_Anomaly_p(ii)
@@ -643,139 +514,19 @@ end if
 	end if
  end do
 
- call progress_close
+! call progress_close
 
  close(12)
 
- write(*, *) char(27), '[2J'
- write(*, *) char(27), '[1;1H'
-
- write(stdout, *) 'Read Ellipsoid Parameters --> Done! '
- write(stdout, *) 'Read Geopotential Model Parameters --> Done! '
- write(stdout, *) 'Read Data Points --> Done! '
- if (ellipsoidal_true) then 
-	write(stdout, *) 'Ellipsoidal height expected!'
- else
-	write(stdout, *) 'Orthometric height expected!'
- end if
- if (T_B_IT_true) then
-	write(stdout, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
- end if
- write(stdout, *) 'Number of Iteration(s) = ', Iteration
- if (Iteration == 0) then
-	write(stdout, fmt="(' Undulation Precision (m) =     ', f7.4)") N_Precision
-	write(stdout, fmt="(' Height Anomaly Precision (m) = ', f7.4)") zeta_Precision
- end if
-
- write(stdout, *) ''
-
- write(stdout, *) 'Number of Data Points = ', nmax_p
-
- write(stdout, *) ''
-
- write(stdout, *) 'Ellipsoid Parameters:'
- write(stdout, *) '----------------------------------------------------------------------'
- write(stdout, *) 'Reference Ellipsoid Name:           ', trim(adjustl(ellipsoidname))
- write(stdout, *) 'Ellipsoid Gravity Constant =        ', GM_ellipsoid
- write(stdout, *) 'Semimajor Axis of the Ellipsoid =   ', a
- write(stdout, *) 'Semiminor Axis of the Ellipsoid =   ', b
- write(stdout, *) 'Reciprocal Flattening =             ', f_reciprocal
- write(stdout, *) 'Angular Velocity of the Earth =     ', omega
- write(stdout, *) 'Normal Potential at the Ellipsoid = ', U_0
- write(stdout, *) 'm = ω**2 a**2 b/(GM) =              ', m_ellipsoid
- write(stdout, *) 'Normal Gravity at the Equator =     ', gamma_0
- write(stdout, *) '----------------------------------------------------------------------'
-
- write(stdout, *) ''
-
- write(stdout, *) 'Geopotential Model Parameters:'
- write(stdout, *) '----------------------------------------------------------------------'
- write(stdout, *) 'Product Type:             ', trim(adjustl(product_type))
- write(stdout, *) 'Model Name:               ', trim(adjustl(modelname))
- write(stdout, *) 'Earth Gravity Constant =  ', GM
- write(stdout, *) 'Radius of the Earth =     ', R
- write(stdout, *) 'Maximum Degree of Model = ', nmax
- write(stdout, *) 'Errors Type of Model:     ', trim(adjustl(errors))
- write(stdout, *) 'Normalization Type:       ', trim(adjustl(norm))
- write(stdout, *) 'Tide System:              ', trim(adjustl(tide_system))
- write(stdout, *) '----------------------------------------------------------------------'
-
- write(stdout, *) ''
- write(stdout, *) 'Production Name: ', productionname
- write(stdout, *) ''
-
- write(stdout, *) 'Computing --> Done!'
- write(stdout, *) 'Saving Results --> Done!'
+ write(stdout, '(a)') 'done!'
 
  write(stdout, 4141) days1, hours1, minutes1, seconds1
- 2121 format(' Computing time: ', I3, ' days ', I3, ' hours ', I3, ' minutes ', F7.3, ' seconds')
+ 4141 format(' Computing time: ', I3, ' days ', I3, ' hours ', I3, ' minutes ', F7.3, ' seconds')
  call exec_time(days2, hours2, minutes2, seconds2)
  write(stdout, 5151) days2, hours2, minutes2, seconds2
- 3131 format(' Saving time:    ', I3, ' days ', I3, ' hours ', I3, ' minutes ', F7.3, ' seconds')
+ 5151 format(' Saving time:    ', I3, ' days ', I3, ' hours ', I3, ' minutes ', F7.3, ' seconds')
 
  open(12, file=trim(adjustl(outputlogname)))
-
- write(12, *) 'Read Ellipsoid Parameters --> Done! '
- write(12, *) 'Read Geopotential Model Parameters --> Done! '
- write(12, *) 'Read Data Points --> Done! '
- if (ellipsoidal_true) then 
-	write(12, *) 'Ellipsoidal height expected!'
- else
-	write(12, *) 'Orthometric height expected!'
- end if
- if (T_B_IT_true) then
-	write(12, *) 'Topography, Bathymetry, and Ice Thickness is Available Separately!'
- end if
- write(12, *) 'Number of Iteration(s) = ', Iteration
- if (Iteration == 0) then
-	write(12, fmt="(' Undulation Precision (m) =     ', f7.4)") N_Precision
-	write(12, fmt="(' Height Anomaly Precision (m) = ', f7.4)") zeta_Precision
- end if
-
- write(12, *) ''
-
- write(12, *) 'Number of Data Points = ', nmax_p
-
- write(12, *) ''
-
- write(12, *) 'Ellipsoid Parameters:'
- write(12, *) '----------------------------------------------------------------------'
- write(12, *) 'Reference Ellipsoid Name:           ', trim(adjustl(ellipsoidname))
- write(12, *) 'Ellipsoid Gravity Constant =        ', GM_ellipsoid
- write(12, *) 'Semimajor Axis of the Ellipsoid =   ', a
- write(12, *) 'Semiminor Axis of the Ellipsoid =   ', b
- write(12, *) 'Reciprocal Flattening =             ', f_reciprocal
- write(12, *) 'Angular Velocity of the Earth =     ', omega
- write(12, *) 'Normal Potential at the Ellipsoid = ', U_0
- write(12, *) 'm = ω**2 a**2 b/(GM) =              ', m_ellipsoid
- write(12, *) 'Normal Gravity at the Equator =     ', gamma_0
- write(12, *) '----------------------------------------------------------------------'
-
- write(12, *) ''
-
- write(12, *) 'Geopotential Model Parameters:'
- write(12, *) '----------------------------------------------------------------------'
- write(12, *) 'Product Type:             ', trim(adjustl(product_type))
- write(12, *) 'Model Name:               ', trim(adjustl(modelname))
- write(12, *) 'Earth Gravity Constant =  ', GM
- write(12, *) 'Radius of the Earth =     ', R
- write(12, *) 'Maximum Degree of Model = ', nmax
- write(12, *) 'Errors Type of Model:     ', trim(adjustl(errors))
- write(12, *) 'Normalization Type:       ', trim(adjustl(norm))
- write(12, *) 'Tide System:              ', trim(adjustl(tide_system))
- write(12, *) '----------------------------------------------------------------------'
-
- write(12, *) ''
- write(12, *) 'Production Name: ', trim(adjustl(productionname))
- write(12, *) ''
-
- write(12, *) 'Computing --> Done!'
- write(12, *) 'Saving Results --> Done!'
-
- write(12, 4141) days1, hours1, minutes1, seconds1
- 4141 format(' Computing time: ', I3, ' days ', I3, ' hours ', I3, ' minutes ', F7.3, ' seconds')
- write(12, 5151) days2, hours2, minutes2, seconds2
- 5151 format(' Saving time:    ', I3, ' days ', I3, ' hours ', I3, ' minutes ', F7.3, ' seconds')
 
  close(12)
 
