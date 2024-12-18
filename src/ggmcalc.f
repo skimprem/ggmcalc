@@ -167,21 +167,21 @@ end do
  write(stdout, *) 'Ellipsoid Parameters:'
  write(stdout, *) '----------------------------------------------------------------------'
  write(stdout, *) 'Reference Ellipsoid Name: ', color(trim(adjustl(ellipsoidname)), c_green)
- write(number_to_string, *) GM_ellipsoid
+ write(number_to_string, '(ES50.6)') GM_ellipsoid
  write(stdout, *) 'Ellipsoid Gravity Constant: ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) a
+ write(number_to_string, '(F50.3)') a
  write(stdout, *) 'Semimajor Axis of the Ellipsoid: ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) b
+ write(number_to_string, '(F50.3)') b
  write(stdout, *) 'Semiminor Axis of the Ellipsoid: ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) f_reciprocal
+ write(number_to_string, '(F50.9)') f_reciprocal
  write(stdout, *) 'Reciprocal Flattening: ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) omega
+ write(number_to_string, '(ES50.7)') omega
  write(stdout, *) 'Angular Velocity of the Earth: ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) U_0
+ write(number_to_string, '(F50.3)') U_0
  write(stdout, *) 'Normal Potential at the Ellipsoid: ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) m_ellipsoid
+ write(number_to_string, '(ES50.5)') m_ellipsoid
  write(stdout, *) 'm = ω**2 a**2 b/(GM): ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) gamma_0
+ write(number_to_string, '(F50.10)') gamma_0
  write(stdout, *) 'Normal Gravity at the Equator: ', color(trim(adjustl(number_to_string)), c_green)
  write(stdout, *) '----------------------------------------------------------------------'
  
@@ -281,9 +281,9 @@ end do
  write(stdout, *) '----------------------------------------------------------------------'
  write(stdout, *) 'Product Type: ', color(trim(adjustl(product_type)), c_green)
  write(stdout, *) 'Model Name: ', color(trim(adjustl(modelname)), c_green)
- write(number_to_string, *) GM
+ write(number_to_string, '(ES50.10)') GM
  write(stdout, *) 'Earth Gravity Constant: ', color(trim(adjustl(number_to_string)), c_green)
- write(number_to_string, *) R
+ write(number_to_string, '(F50.3)') R
  write(stdout, *) 'Radius of the Earth: ', color(trim(adjustl(number_to_string)), c_green)
  write(number_to_string, *) nmax
  write(stdout, *) 'Maximum Degree of Model: ', color(trim(adjustl(number_to_string)), c_green)
@@ -314,9 +314,9 @@ end do
  if (Iteration == 0) then
    write(number_to_string, *) Iteration
    write(stdout, *) 'Number of Iteration, s: ', color(trim(adjustl(number_to_string)), c_green)
-   write(number_to_string, *) N_Precision
+   write(number_to_string, '(F50.4)') N_Precision
    write(stdout, *) 'Undulation Precision, m: ', color(trim(adjustl(number_to_string)), c_green)
-   write(number_to_string, *) zeta_Precision
+   write(number_to_string, '(F50.4)') zeta_Precision
    write(stdout, *)'Height Anomaly Precision, m: ', color(trim(adjustl(number_to_string)), c_green)
  else
    N_Precision = 0.0_longdp

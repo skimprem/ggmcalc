@@ -1,3 +1,9 @@
+2014-12-18 Roman Sermiagin
+Ver. 1.0.3
+- Add command arguments for enter the parameters
+- Add help
+- Simplify the output stdout information
+
 2018-05-04 Siamak Moazezi
 Ver. 1.0.2
 - The source and data files were moved to "src" directory.
