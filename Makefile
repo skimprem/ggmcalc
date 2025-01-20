@@ -18,8 +18,9 @@ SRCS = src/nrtype.f \
        src/date_sub.f \
        src/duration.f \
        src/color_mod.f \
-       src/help_mod.f
-SRCP = src/$(PROG).f
+       src/help_mod.f \
+       src/ggmcalc_mod.f
+SRCP = src/main.f
 OBJS = $(SRCS:%.f=%.o)
 MODS = $(SRCS:%.f=%.mod)
 OBJP = $(SRCP:%.f=%.o)

@@ -24,7 +24,7 @@ module help_mod
         out = out // char(10) // '                  62636851.7146d0'
         out = out // char(10) // '                  WGS_84'
         out = out // char(10) // ''
-        out = out // char(10) // '  --input_files   Specify the input file(s) with coordinates and other required fields.'
+        out = out // char(10) // '  --input_file    Specify the input file(s) with coordinates and other required fields.'
         out = out // char(10) // ''
         out = out // char(10) // '  --ortho_height  [optional] To set the input height in orthometric system.'
         out = out // char(10) // '                  Default is ELLIPSOIDAL.'
