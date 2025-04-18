@@ -55,6 +55,7 @@
       real(longdp), intent(in) :: h, latitude_geodetic, longitude, a, b
       real(longdp) :: rr, latitude
       real(longdp) :: colatitude, colatitude_rad, sin_colatitude_rad, cos_colatitude_rad, n, m, a_nm, b_nm, f_nm
+
       do ii = 0, nmax
               do jj = 0, nmax
                       p_bar_nm(ii+1, jj+1) = 0.0_longdp

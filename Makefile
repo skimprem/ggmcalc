@@ -18,8 +18,6 @@ SRCS = src/nrtype.f90 \
        src/progressbar_mod.f90 \
        src/date_sub.f90 \
        src/duration.f90 \
-       src/color_mod.f90 \
-       src/help_mod.f90 \
        src/ggmcalc_mod.f90
 SRCP = src/main.f90
 OBJS = $(SRCS:%.f90=%.o)

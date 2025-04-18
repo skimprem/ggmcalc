@@ -21,12 +21,40 @@
 !-------------------------------------------------------------------------------------------------
 
 module ggmcalc_mod
+
 contains
 
-   subroutine ggmcalc_main(coef_file, ellipsoid_config, input_file, ellipsoidal_true, T_B_IT_true, iteration, N_Precision, zeta_Precision, productionname)
+subroutine ggmcalc_main(&
+    GM_ellipsoid,&
+    a,&
+    b,&
+    f_reciprocal,&
+    omega,&
+    U_0,&
+    ellipsoidname,&
+    input_file,&
+    ellipsoidal_true,&
+    T_B_IT_true,&
+    iteration,&
+    N_Precision,&
+    zeta_Precision,&
+    productionname,&
+    c_bar_nm,&
+    product_type,&
+    modelname,&
+    gm,&
+    R,&
+    nmax,&
+    errors,&
+    norm,&
+    tide_system,&
+    Latitude_p,& 
+    longitude_p,&
+    h_p&
+)
 
      use nrtype
-     use inout_mod
+     use result
      use Legendre_mod
      use C_2n_mod
      use gamma_mod
@@ -38,26 +66,36 @@ contains
      use gravity_anomaly_mod
      use ProgressBar_mod
      use duration
+
      implicit none
-     integer(i4b) :: nmin=0, nmax, nmax_p, n, m, ii, jj, nn
-     real(longdp) :: GM_ellipsoid, a, b, f_reciprocal, omega, U_0, m_ellipsoid, gamma_0
-     real(longdp) :: GM, R, c, s, sigma_c, sigma_s
-     real(longdp), allocatable, dimension(:) :: C_bar_nm
+     real(longdp), intent(in) :: c_bar_nm(:)
+     character(*), intent(in) :: input_file, ellipsoidname, productionname
+     real(longdp), intent(in) :: GM_ellipsoid, a, b, f_reciprocal, omega, U_0
+     real(longdp), intent(inout) :: N_Precision, zeta_Precision 
+     logical, intent(in) :: ellipsoidal_true, T_B_IT_true
+     integer(i4b), intent(in) :: Iteration, nmax
+     character(*), intent(in) :: product_type, modelname
+     character(*), intent(in) :: errors
+     character(*) :: norm, tide_system
+     real(longdp), intent(in) :: GM, R
+     real(longdp), intent(in) :: latitude_p(:), Longitude_p(:), h_p(:)
+
+     integer(i4b) :: nmin=0, nmax_p, n, m, ii, jj, nn, iii, jjj
+     real(longdp) :: m_ellipsoid, gamma_0
+     real(longdp) :: c, s, sigma_c, sigma_s
+    !  real(longdp), allocatable, dimension(:) :: C_bar_nm
      real(longdp), allocatable, dimension(:,:) :: p_bar_nm, dp_bar_nm
-     integer(i4b) :: Iteration
-     real(longdp) :: N_Precision, zeta_Precision, Latitude, Longitude, h, depth, ice, rho, N_O, N_E
-     real(longdp), allocatable, dimension(:) :: Latitude_p, Latitude_p_geodetic, Longitude_p, h_p, Undulation_p, Undulation_Simple_Assumed_Density_p, Undulation_Assumed_Density_p, Gravity_Disturbance_p, Classical_Gravity_Anomaly_p, Classical_Gravity_Anomaly_2_p, Molodensky_Gravity_Anomaly_p
+     real(longdp) :: Latitude, Longitude, h, depth, ice, rho, N_O, N_E
+     real(longdp), allocatable, dimension(:) :: Latitude_p_geodetic, Undulation_p, Undulation_Simple_Assumed_Density_p, Undulation_Assumed_Density_p, Gravity_Disturbance_p, Classical_Gravity_Anomaly_p, Classical_Gravity_Anomaly_2_p, Molodensky_Gravity_Anomaly_p
      real(longdp), allocatable, dimension(:) :: depth_p, ice_p
      character*(1) :: temp
-     character(len=50) :: str1, str2, product_type, modelname, errors, norm, tide_system, coefficient_kind, ellipsoidname
-     character(len=256) :: buffer, label, productionname, outputname, outputlogname
+     character(len=50) :: str1, str2, coefficient_kind
+     character(len=256) :: buffer, label, outputname, outputlogname
      integer(i4b) :: pos, Number_p
-     logical :: ellipsoidal_true, T_B_IT_true, writing
-
+     logical :: writing
      integer :: days1, hours1, minutes1, days2, hours2, minutes2, i, stdout = 6
      real(longdp) :: seconds1, seconds2
 !      character(len=:), allocatable :: coef_file, ellipsoid_config, input_file
-     character(len=512), intent(in) :: coef_file, ellipsoid_config, input_file
      character(len=500) :: number_to_string
 
     ! nproc = omp_get_num_procs()
@@ -70,20 +108,21 @@ contains
     !!----------------------------------------------------------------------------------------------------
     !!---------------------------- Reading of Reference Ellipsoid Parameters -----------------------------
     !!----------------------------------------------------------------------------------------------------
+    nmax_p = size(latitude_p)
 
      write(stdout, '(a)', advance='no') 'Read Ellipsoid Parameters ... '
 
-     open(12, file=ellipsoid_config)
+    !  open(12, file=ellipsoid_config)
     !!----------------------------------------------------------------------------------------------------
-     read(12, *) GM_ellipsoid
-     read(12, *) a
-     read(12, *) b
-     read(12, *) f_reciprocal
-     read(12, *) omega
-     read(12, *) U_0
-     read(12, *) ellipsoidname
+    !  read(12, *) GM_ellipsoid
+    !  read(12, *) a
+    !  read(12, *) b
+    !  read(12, *) f_reciprocal
+    !  read(12, *) omega
+    !  read(12, *) U_0
+    !  read(12, *) ellipsoidname
     !!----------------------------------------------------------------------------------------------------
-     close(12)
+    !  close(12)
     !!----------------------------------------------------------------------------------------------------
      m_ellipsoid = (omega**2.0_longdp * a**2.0_longdp *b) / GM_ellipsoid
      gamma_0 = GM_ellipsoid / a**2.0_longdp
@@ -113,97 +152,100 @@ contains
      write(stdout, *) 'Normal Gravity at the Equator: ', trim(adjustl(number_to_string))
      write(stdout, *) '----------------------------------------------------------------------'
 
-    !!----------------------------------------------------------------------------------------------------
-    !!----------------------------- Reading of Geopotential Model Parameters -----------------------------
-    !!----------------------------------------------------------------------------------------------------
+    !----------------------------------------------------------------------------------------------------
+    !----------------------------- Reading of Geopotential Model Parameters -----------------------------
+    !----------------------------------------------------------------------------------------------------
 
-     write(stdout, '(a)', advance='no') 'Read Geopotential Model Parameters ... '
+!      write(stdout, '(a)', advance='no') 'Read Geopotential Model Parameters ... '
 
-     product_type = 'Unknown'
-     modelname = 'Unknown'
-     errors = 'Unknown'
-     norm = 'Unknown'
-     tide_system = 'Unknown'
-     open(12, file=coef_file)
+!      product_type = 'Unknown'
+!      modelname = 'Unknown'
+!      errors = 'Unknown'
+!      norm = 'Unknown'
+!      tide_system = 'Unknown'
+!      open(12, file=coef_file)
 
-     do
-      read(12, '(A)') buffer
-      pos = scan(buffer, ' ')
-      if (pos /= 0) then
-              label = buffer(1:pos)
-              buffer = adjustl(buffer(pos+1:))
-              select case (label)
-              case ('product_type')
-                      read(buffer, *) str2
-                      product_type = trim(str2)
-              case ('modelname')
-                      read(buffer, *) str2
-                      modelname = trim(str2)
-              case ('earth_gravity_constant')
-                      read(buffer, *) str2
-                      read(str2, *) GM
-              case ('radius')
-                      read(buffer, *) str2
-                      read(str2, *) R
-              case ('max_degree')
-                      read(buffer, *) str2
-                      read(str2, *) nmax
-              case ('errors')
-                      read(buffer, *) str2
-                      errors = trim(str2)
-              case ('norm')
-                      read(buffer, *) str2
-                      norm = trim(str2)
-              case ('tide_system')
-                      read(buffer, *) str2
-                      tide_system = trim(str2)
-              !key    L    M         C                  S           sigma C    sigma S
-              case ('end_of_head')
-                      exit
-              end select
-      end if
-     end do
+!      do
+!       read(12, '(A)') buffer
+!       pos = scan(buffer, ' ')
+!       if (pos /= 0) then
+!               label = buffer(1:pos)
+!               buffer = adjustl(buffer(pos+1:))
+!               select case (label)
+!               case ('product_type')
+!                       read(buffer, *) str2
+!                       product_type = trim(str2)
+!               case ('modelname')
+!                       read(buffer, *) str2
+!                       modelname = trim(str2)
+!               case ('earth_gravity_constant')
+!                       read(buffer, *) str2
+!                       read(str2, *) GM
+!               case ('radius')
+!                       read(buffer, *) str2
+!                       read(str2, *) R
+!               case ('max_degree')
+!                       read(buffer, *) str2
+!                       read(str2, *) nmax
+!               case ('errors')
+!                       read(buffer, *) str2
+!                       errors = trim(str2)
+!               case ('norm')
+!                       read(buffer, *) str2
+!                       norm = trim(str2)
+!               case ('tide_system')
+!                       read(buffer, *) str2
+!                       tide_system = trim(str2)
+!               !key    L    M         C                  S           sigma C    sigma S
+!               case ('end_of_head')
+!                       exit
+!               end select
+!       end if
+!      end do
 
-    !!----------------------------------------------------------------------------------------------------
-     allocate(C_bar_nm(nmax*(nmax+2)+1))
-     do ii = 0, nmax
-      do jj = 0, ii !nmax
-              if (jj == 0) then
-                      C_bar_nm((nmax - jj) * (nmax - jj + 1) + nmax - ii + 1) = 0.0_longdp
-              else
-                      nn = (nmax - jj) * (nmax - jj + 1) + 2*(nmax - ii) + 1
-                      C_bar_nm(nn) = 0.0_longdp
-                      C_bar_nm(nn+1) = 0.0_longdp
-              end if
-      end do
-     end do
-    !!----------------------------------------------------------------------------------------------------
- 100     continue
-     if (index(errors, 'no') /= 0) then
-      read(12, *, end=200) coefficient_kind, n, m, c, s
-     else
-      read(12, *, end=200) coefficient_kind, n, m, c, s, sigma_c, sigma_s
-     end if
+!     !!----------------------------------------------------------------------------------------------------
+!      allocate(C_bar_nm(nmax*(nmax+2)+1))
+!      do ii = 0, nmax
+!       do jj = 0, ii !nmax
+!               if (jj == 0) then
+!                       C_bar_nm((nmax - jj) * (nmax - jj + 1) + nmax - ii + 1) = 0.0_longdp
+!               else
+!                       nn = (nmax - jj) * (nmax - jj + 1) + 2*(nmax - ii) + 1
+!                       C_bar_nm(nn) = 0.0_longdp
+!                       C_bar_nm(nn+1) = 0.0_longdp
+!               end if
+!       end do
+!      end do
+!     !!----------------------------------------------------------------------------------------------------
+!  100     continue
+!      if (index(errors, 'no') /= 0) then
+!       read(12, *, end=200) coefficient_kind, n, m, c, s
+!      else
+!       read(12, *, end=200) coefficient_kind, n, m, c, s, sigma_c, sigma_s
+!      end if
 
-     if (n < nmin .or. n > nmax) goto 100
-     if (index(coefficient_kind, 'gfc') == 0) goto 100
+!      if (n < nmin .or. n > nmax) goto 100
+!      if (index(coefficient_kind, 'gfc') == 0) goto 100
 
-     if (m == 0) then
-      C_bar_nm((nmax - m) * (nmax - m + 1) + nmax - n + 1) = c
-     else
-      nn = (nmax - m) * (nmax - m + 1) + 2*(nmax - n) + 1
-      C_bar_nm(nn) = c
-      C_bar_nm(nn+1) = s
-     end if
-     goto 100
- 200     continue
-    !!----------------------------------------------------------------------------------------------------
-     close(12)
-    !!----------------------------------------------------------------------------------------------------
-    !!-------------------------- End of Reading of Geopotential Model Parameters -------------------------
-    !!----------------------------------------------------------------------------------------------------
+!      if (m == 0) then
+!       C_bar_nm((nmax - m) * (nmax - m + 1) + nmax - n + 1) = c
+!      else
+!       nn = (nmax - m) * (nmax - m + 1) + 2*(nmax - n) + 1
+!       C_bar_nm(nn) = c
+!       C_bar_nm(nn+1) = s
+!      end if
+!      goto 100
+!  200     continue
+!     !!----------------------------------------------------------------------------------------------------
+!      close(12)
+!     !!----------------------------------------------------------------------------------------------------
+!     !!-------------------------- End of Reading of Geopotential Model Parameters -------------------------
+!     !!----------------------------------------------------------------------------------------------------
 
-     write(stdout, '(a)') 'done! '
+!     print *, coeffs - c_bar_nm
+
+    ! print *, c_bar_nm
+!      write(stdout, '(a)') 'done! '
 
      write(stdout, *) 'Geopotential Model Parameters:'
      write(stdout, *) '----------------------------------------------------------------------'
@@ -213,8 +255,8 @@ contains
      write(stdout, *) 'Earth Gravity Constant: ', trim(adjustl(number_to_string))
      write(number_to_string, '(F50.3)') R
      write(stdout, *) 'Radius of the Earth: ', trim(adjustl(number_to_string))
-     write(number_to_string, *) nmax
-     write(stdout, *) 'Maximum Degree of Model: ', trim(adjustl(number_to_string))
+    !  write(number_to_string, *) nmax
+    !  write(stdout, *) 'Maximum Degree of Model: ', trim(adjustl(number_to_string))
      write(stdout, *) 'Errors Type of Model: ', trim(adjustl(errors))
      write(stdout, *) 'Normalization Type: ', trim(adjustl(norm))
      write(stdout, *) 'Tide System: ', trim(adjustl(tide_system))
@@ -251,25 +293,25 @@ contains
        Zeta_Precision = 0.0_longdp
      end if
 
-    !!----------------------------------------------------------------------------------------------------
-    !!---------------------------------- Reading of Points Coordinates -----------------------------------
-    !!----------------------------------------------------------------------------------------------------
+!     !!----------------------------------------------------------------------------------------------------
+!     !!---------------------------------- Reading of Points Coordinates -----------------------------------
+!     !!----------------------------------------------------------------------------------------------------
 
-     write(stdout, '(a)', advance='no') 'Read Data Points ... '
+!      write(stdout, '(a)', advance='no') 'Read Data Points ... '
 
-     open(12, file=input_file)
+!      open(12, file=input_file)
 
-     nmax_p = 0
- 301     continue
-     nmax_p = nmax_p + 1
-     read(12, *, end=401) temp
-     goto 301
- 401     continue
+!      nmax_p = 0
+!  301     continue
+!      nmax_p = nmax_p + 1
+!      read(12, *, end=401) temp
+!      goto 301
+!  401     continue
 
-     allocate(latitude_p(nmax_p))
+!      allocate(latitude_p(nmax_p))
      allocate(latitude_p_geodetic(nmax_p))
-     allocate(longitude_p(nmax_p))
-     allocate(h_p(nmax_p))
+!      allocate(longitude_p(nmax_p))
+!      allocate(h_p(nmax_p))
      allocate(Undulation_p(nmax_p))
      allocate(Undulation_Simple_Assumed_Density_p(nmax_p))
      allocate(Undulation_Assumed_Density_p(nmax_p))
@@ -278,62 +320,62 @@ contains
      allocate(Classical_Gravity_Anomaly_p(nmax_p))
      allocate(Classical_Gravity_Anomaly_2_p(nmax_p))
      allocate(Molodensky_Gravity_Anomaly_p(nmax_p))
-    !!----------------------------------------------------------------------------------------------------
-     do ii = 1, nmax_p
-      latitude_p(ii) = 0._longdp
-      latitude_p_geodetic(ii) = 0._longdp
-      longitude_p(ii) = 0._longdp
-      h_p(ii) = 0.0_longdp
-      Undulation_p(ii) = 0.0_longdp
-      Undulation_Simple_Assumed_Density_p(ii) = 0.0_longdp
-      Undulation_Assumed_Density_p(ii) = 0.0_longdp
-      Height_Anomaly_p(ii) = 0.0_longdp
-      Gravity_Disturbance_p(ii) = 0.0_longdp
-      Classical_Gravity_Anomaly_p(ii) = 0.0_longdp
-      Classical_Gravity_Anomaly_2_p(ii) = 0.0_longdp
-      Molodensky_Gravity_Anomaly_p(ii) = 0.0_longdp
-     end do
-    !!----------------------------------------------------------------------------------------------------
+!     !!----------------------------------------------------------------------------------------------------
+!      do ii = 1, nmax_p
+!       latitude_p(ii) = 0._longdp
+!       latitude_p_geodetic(ii) = 0._longdp
+!       longitude_p(ii) = 0._longdp
+!       h_p(ii) = 0.0_longdp
+!       Undulation_p(ii) = 0.0_longdp
+!       Undulation_Simple_Assumed_Density_p(ii) = 0.0_longdp
+!       Undulation_Assumed_Density_p(ii) = 0.0_longdp
+!       Height_Anomaly_p(ii) = 0.0_longdp
+!       Gravity_Disturbance_p(ii) = 0.0_longdp
+!       Classical_Gravity_Anomaly_p(ii) = 0.0_longdp
+!       Classical_Gravity_Anomaly_2_p(ii) = 0.0_longdp
+!       Molodensky_Gravity_Anomaly_p(ii) = 0.0_longdp
+!      end do
+!     !!----------------------------------------------------------------------------------------------------
 
-     close(12)
-     open(12, file=input_file)
+!      close(12)
+!      open(12, file=input_file)
 
-     ii = 0
- 300     continue
-     if (T_B_IT_true) then
-      !------------============= Reading Topography, Bathymetry, and Ice Thickness =============------------
-      read(12, *, end=400) latitude, longitude, h, depth, ice
-      !------------============= Reading Topography, Bathymetry, and Ice Thickness =============------------
-     else
-      read(12, *, end=400) latitude, longitude, h
-     end if
+!      ii = 0
+!  300     continue
+!      if (T_B_IT_true) then
+!       !------------============= Reading Topography, Bathymetry, and Ice Thickness =============------------
+!       read(12, *, end=400) latitude, longitude, h, depth, ice
+!       !------------============= Reading Topography, Bathymetry, and Ice Thickness =============------------
+!      else
+!       read(12, *, end=400) latitude, longitude, h
+!      end if
 
-     ii = ii + 1
+!      ii = ii + 1
 
-     Latitude_p_geodetic(ii) = Latitude
-     Latitude_p(ii) = Latitude
-     Longitude_p(ii) = Longitude
-     h_p(ii) = h
+!      Latitude_p_geodetic(ii) = Latitude
+!      Latitude_p(ii) = Latitude
+!      Longitude_p(ii) = Longitude
+!      h_p(ii) = h
 
-     if (T_B_IT_true) then
-      depth_p(ii) = depth
-      ice_p(ii) = ice
-     end if
+!      if (T_B_IT_true) then
+!       depth_p(ii) = depth
+!       ice_p(ii) = ice
+!      end if
 
-     goto 300
- 400     continue
-     nmax_p = ii
-     ii = 0
-    !!write(stdout, *) nmax_p
-    !!pause
-    !!----------------------------------------------------------------------------------------------------
-     close(12)
-    !!----------------------------------------------------------------------------------------------------
-    !!------------------------------- End of Reading of Points Coordinates -------------------------------
-    !!----------------------------------------------------------------------------------------------------
+!      goto 300
+!  400     continue
+!      nmax_p = ii
+!      ii = 0
+!     !!write(stdout, *) nmax_p
+!     !!pause
+!     !!----------------------------------------------------------------------------------------------------
+!      close(12)
+!     !!----------------------------------------------------------------------------------------------------
+!     !!------------------------------- End of Reading of Points Coordinates -------------------------------
+!     !!----------------------------------------------------------------------------------------------------
 
-     write(stdout, '(a)') 'done! '
-
+!      write(stdout, '(a)') 'done! '
+    latitude_p_geodetic = latitude_p
      write(number_to_string, *) nmax_p
      write(stdout, *) 'Number of Data Points: ', trim(adjustl(number_to_string))
 
@@ -400,10 +442,15 @@ contains
       end if
 
       Undulation_Simple_Assumed_Density_p(ii) = Undulation_p(ii) - ((2.0_longdp*PI_D * 6.67428E-11 * rho * (h_p(ii) - N_E)**2.0_longdp) / gamma_h(latitude_p(ii), 0.0_longdp, GM_ellipsoid, a, b, f_reciprocal, omega))
+
       Height_Anomaly_p(ii) = height_anomaly(h_p(ii) + N_O, latitude_p(ii), longitude_p(ii), GM, R, GM_ellipsoid, a, b, f_reciprocal, omega, C_bar_nm, nmax, p_bar_nm, dp_bar_nm, Iteration, zeta_Precision)
+
       Gravity_Disturbance_p(ii) = gravity_disturbance(h_p(ii) + N_O, latitude_p(ii), longitude_p(ii), GM, R, GM_ellipsoid, a, b, f_reciprocal, omega, C_bar_nm, nmax, p_bar_nm, dp_bar_nm) * 100000.0_longdp
+
       Classical_Gravity_Anomaly_p(ii) = ga_classic_first_approximation(Undulation_Simple_Assumed_Density_p(ii), latitude_p(ii), longitude_p(ii), GM, R, GM_ellipsoid, a, b, f_reciprocal, omega, C_bar_nm, nmax, p_bar_nm, dp_bar_nm) * 100
+
       Classical_Gravity_Anomaly_2_p(ii) = ga_classic_second_approximation(h_p(ii) + N_O, Undulation_Simple_Assumed_Density_p(ii), latitude_p(ii), longitude_p(ii), GM, R, GM_ellipsoid, a, b, f_reciprocal, omega, C_bar_nm, nmax, p_bar_nm, dp_bar_nm) * 100000.0_longdp
+
       Molodensky_Gravity_Anomaly_p(ii) = gravity_anomaly_molodensky(h_p(ii) + N_O, Height_Anomaly_p(ii), latitude_p(ii), longitude_p(ii), GM, R, GM_ellipsoid, a, b, f_reciprocal, omega, C_bar_nm, nmax, p_bar_nm, dp_bar_nm) * 100000.0_longdp
 
       if (T_B_IT_true) then
@@ -458,11 +505,11 @@ contains
 
      close(12)
 
-     deallocate(C_bar_nm)
-     deallocate(latitude_p)
+    !  deallocate(C_bar_nm)
+    !  deallocate(latitude_p)
      deallocate(latitude_p_geodetic)
-     deallocate(longitude_p)
-     deallocate(h_p)
+    !  deallocate(longitude_p)
+    !  deallocate(h_p)
      deallocate(Undulation_p)
      deallocate(Undulation_Simple_Assumed_Density_p)
      deallocate(Undulation_Assumed_Density_p)

@@ -1,7 +1,7 @@
-module inout_mod
+module result
 
     use nrtype
 
     real(longdp), dimension(:), allocatable :: Height_Anomaly_p
 
-end module inout_mod
+end module result
