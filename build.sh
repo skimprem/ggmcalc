@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python -m numpy.f2py -c -m ggmcalc src/nrtype.f90        src/result.f90        src/coordinates_mod.f90        src/legendre_mod.f90        src/c_2n_mod.f90        src/gamma_mod.f90        src/w_mod.f90        src/u_mod.f90        src/undulation_mod.f90        src/height_anomaly_mod.f90        src/gravity_disturbance_mod.f90        src/gravity_anomaly_mod.f90        src/progressbar_mod.f90        src/date_sub.f90        src/duration.f90        src/ggmcalc_mod.f90 --build-dir build && python test.py
