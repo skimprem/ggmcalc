@@ -20,7 +20,7 @@ program ggmcalc
   input_file = ''
   ellipsoidal_true = .true.
   T_B_IT_true = .false.
-  Iteration = 0
+  Iteration = 1000
   N_Precision = 1e-3_longdp
   Zeta_Precision = 1e-3_longdp
   productionname = 'default'
